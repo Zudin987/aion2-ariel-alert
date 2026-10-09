@@ -1,0 +1,29 @@
+name: Cloudflare Worker Tests
+
+on:
+  push:
+    paths:
+      - "cloudflare/**"
+      - ".github/workflows/cloudflare-tests.yml"
+  pull_request:
+    paths:
+      - "cloudflare/**"
+      - ".github/workflows/cloudflare-tests.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    defaults:
+      run:
+        working-directory: cloudflare
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run Worker unit tests
+        run: node --test tests/*.test.mjs
