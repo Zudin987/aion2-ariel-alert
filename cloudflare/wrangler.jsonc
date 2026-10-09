@@ -1,0 +1,9 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "aion2-ariel-alert",
+  "main": "src/index.mjs",
+  "compatibility_date": "2026-10-09",
+  "workers_dev": true,
+  "triggers": { "crons": ["*/5 * * * *"] },
+  "kv_namespaces": [{ "binding": "STATE" }]
+}
