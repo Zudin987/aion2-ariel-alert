@@ -37,6 +37,29 @@ class ParserTests(unittest.TestCase):
         with self.assertRaises(monitor.UntrustedSource):
             monitor.parse_status(p)
 
+    def test_favorites_column_blocked(self):
+        p = page()
+        p = p.replace("<th>Status</th>", "<th>Favorites</th><th>Status</th>")
+        p = p.replace("<tr><td>Online</td>", "<tr><td>☆</td><td>Online</td>")
+        self.assertEqual(monitor.parse_status(p)["creation"], "blocked")
+
+    def test_favorites_column_open(self):
+        p = page(blocked=False)
+        p = p.replace("<th>Status</th>", "<th>Favorites</th><th>Status</th>")
+        p = p.replace("<tr><td>Online</td>", "<tr><td>☆</td><td>Online</td>")
+        self.assertEqual(monitor.parse_status(p)["creation"], "open")
+
+    def test_blank_favorites_heading(self):
+        p = page()
+        p = p.replace("<th>Status</th>", "<th></th><th>Status</th>")
+        p = p.replace("<tr><td>Online</td>", "<tr><td>☆</td><td>Online</td>")
+        self.assertEqual(monitor.parse_status(p)["creation"], "blocked")
+
+    def test_missing_creation_lock_schema_fails_closed(self):
+        p = page(blocked=False).replace("Character creation blocked", "Something else")
+        with self.assertRaises(monitor.UntrustedSource):
+            monitor.parse_status(p)
+
     def test_timestamp_is_accepted(self):
         with patch("monitor.datetime") as dt:
             dt.strptime.return_value = datetime(2026, 10, 8, 9, 19, 14)

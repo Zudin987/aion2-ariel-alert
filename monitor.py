@@ -25,25 +25,35 @@ class UntrustedSource(Exception):
 
 def parse_status(html: str) -> dict:
     soup = BeautifulSoup(html, "html.parser")
+    # The site's layout now includes an optional Favorites column before Status.
+    # Never assume the target fields are at fixed table positions.
+    if LOCK_LABEL not in html:
+        raise UntrustedSource("Character-creation indicator/legend missing")
     matches = []
+    candidates = []
+    required = ("status", "server", "faction", "region", "population")
     for table in soup.select("table"):
         headers = [el.get_text(" ", strip=True).casefold() for el in table.select("thead th")]
-        if headers[:4] != ["status", "server", "faction", "region"]:
+        if not all(headers.count(key) == 1 for key in required):
+            if any(key in headers for key in ("status", "server", "faction")):
+                candidates.append(headers)
             continue
+        idx = {key: headers.index(key) for key in required}
         for row in table.select("tbody tr"):
             cells = row.find_all("td", recursive=False)
-            if len(cells) < 5:
+            if any(pos >= len(cells) for pos in idx.values()):
                 continue
-            name_el = cells[1].select_one("span.font-medium")
+            server_cell = cells[idx["server"]]
+            name_el = server_cell.select_one("span.font-medium")
             if name_el is None:
                 continue
             identity = (name_el.get_text(" ", strip=True),
-                        cells[2].get_text(" ", strip=True),
-                        cells[3].get_text(" ", strip=True))
+                        cells[idx["faction"]].get_text(" ", strip=True),
+                        cells[idx["region"]].get_text(" ", strip=True))
             if identity != TARGET:
                 continue
-            online = cells[0].get_text(" ", strip=True)
-            icons = cells[1].select('[aria-label="Character creation blocked"]')
+            online = cells[idx["status"]].get_text(" ", strip=True)
+            icons = server_cell.select('[aria-label="Character creation blocked"]')
             if len(icons) > 1:
                 raise UntrustedSource("Duplicate character-creation indicators")
             if online == "Online":
@@ -53,12 +63,14 @@ def parse_status(html: str) -> dict:
             matches.append({
                 "server": identity[0], "faction": identity[1], "region": identity[2],
                 "online": online, "creation": creation,
-                "population": cells[4].get_text(" ", strip=True)
+                "population": cells[idx["population"]].get_text(" ", strip=True)
             })
     if len(matches) != 1:
-        raise UntrustedSource(f"Expected one Ariel/Elyos/Asia row; found {len(matches)}")
+        raise UntrustedSource(
+            f"Expected one Ariel/Elyos/Asia row; found {len(matches)}. "
+            f"Candidate table headers: {candidates[:3]}"
+        )
     return matches[0]
-
 
 def assert_fresh(html: str) -> None:
     soup = BeautifulSoup(html, "html.parser")

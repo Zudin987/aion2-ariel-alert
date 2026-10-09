@@ -1,8 +1,16 @@
 name: Ariel Character Creation Monitor
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "monitor.py"
+      - "tests/**"
+      - "requirements.txt"
+      - ".github/workflows/monitor.yml"
   schedule:
-    - cron: "*/5 * * * *"
+    # Offset from top-of-hour, where GitHub schedules are often congested.
+    - cron: "3-58/5 * * * *"
   workflow_dispatch:
     inputs:
       mode:
@@ -39,6 +47,7 @@ jobs:
       - name: Run tests
         run: python -m unittest discover -s tests -v
       - name: Check Ariel status
+        if: github.event_name != 'push'
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           DISCORD_ROLE_ID: ${{ vars.DISCORD_ROLE_ID }}
